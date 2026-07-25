@@ -1,26 +1,45 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — see DESIGN.md for the rationale behind each one.
+ * This is a single, deliberately light-only "printed ledger" palette;
+ * DESIGN.md doesn't specify a dark variant, so we're not inventing one.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f1ece1;
+  --card: #fffdf8;
+  --ink: #1c1a17;
+  --rust: #9c3b32;
+  --olive: #8a7a3d;
+  --success: #4c9a5b;
+  --muted: #8a8578;
+  --hairline: #d8d2c4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-rust: var(--rust);
+  --color-olive: var(--olive);
+  --color-success: var(--success);
+  --color-muted: var(--muted);
+  --color-hairline: var(--hairline);
+
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-anton);
+  --font-accent: var(--font-roboto-slab);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* Stops the whole-page rubber-band/pull-to-refresh bounce on mobile
+     Safari/Chrome — a native app's chrome doesn't bounce past its own
+     edges, and that bounce is one of the more obvious "this is just a
+     website" tells when installed standalone. */
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
 }
