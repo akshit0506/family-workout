@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Family Workout
 
-## Getting Started
+A mobile-first, installable PWA that helps a 7-person family stay
+consistent with working out — by making each other's effort visible.
+Calm and motivating rather than competitive or judgmental:
+accountability through visibility, not pressure.
 
-First, run the development server:
+Log a workout in a couple of taps, see the family's activity feed, check
+the leaderboard, and track your own streaks and history — all from a
+home-screen app, not just a website.
+
+## Features
+
+- **Home** — today's stats, an activity sparkline, and a live feed of the
+  family's recent workouts
+- **Board** — leaderboard with podium view and full rankings, multiple
+  time periods
+- **Profile** — per-athlete streaks, a month calendar of logged days,
+  activity breakdown, and ranking history
+- **Self-serve onboarding** — pick your name from the family list, verify
+  with an emailed 6-digit code, and you're in — no admin invite step
+- **Installable PWA** — add-to-home-screen on iOS/Android, standalone
+  launch, offline app-shell caching, safe-area-aware layout for notches
+  and home indicators
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) (App Router, Turbopack)
+- [Supabase](https://supabase.com) — Postgres, Row Level Security, Auth
+  (email OTP), Storage
+- Tailwind CSS v4
+- TypeScript
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 20+
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`)
+- Docker (required by the Supabase CLI to run Postgres locally)
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Start local Supabase
+
+```bash
+npx supabase start
+```
+
+This spins up a local Postgres instance, runs the migrations in
+`supabase/migrations/`, and seeds it with realistic demo data
+(`supabase/seed.sql`) — 7 athletes, weeks of activity history, comments,
+and kudos, so the app looks alive from the first run. See
+[`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) for the full local-dev setup,
+including how to grab a magic-link sign-in code from the local mail
+catcher (Mailpit) without a real email provider.
+
+### 3. Configure environment variables
+
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in the two values from `npx supabase status` (or Studio → Project
+Settings → API for a hosted project):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Sign in with any of
+the seeded family members' names and grab the OTP code from Mailpit at
+[http://localhost:54324](http://localhost:54324).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm start` | Run the production build |
+| `npm run lint` | ESLint |
 
-## Learn More
+## Project documentation
 
-To learn more about Next.js, take a look at the following resources:
+This repo is documentation-heavy on purpose — the "why," not just the
+"what," lives in these files:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| File | Covers |
+|---|---|
+| [`PRODUCT.md`](./PRODUCT.md) | Product spec: scope, assumptions, open questions |
+| [`DESIGN.md`](./DESIGN.md) | Visual language and design tokens |
+| [`ROADMAP.md`](./ROADMAP.md) | Milestone history and what's next |
+| [`BACKEND_PLAN.md`](./BACKEND_PLAN.md) | Supabase schema/RLS architecture decisions |
+| [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) | Local Supabase dev workflow |
+| [`FRONTEND_INTEGRATION.md`](./FRONTEND_INTEGRATION.md) | What's actually wired up vs. mock data |
+| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Production deployment guide, PWA checklist, browser support, known limitations |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Not yet deployed to production. `DEPLOYMENT.md` has the full runbook —
+hosted Supabase project setup, production data bootstrap (a clean slate,
+no demo content), auth/SMTP configuration, and Vercel deployment — along
+with a PWA-specific checklist and browser compatibility notes.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private family project — not licensed for reuse.
