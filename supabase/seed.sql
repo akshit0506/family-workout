@@ -25,22 +25,19 @@
 select setseed(0.4242); -- rough run-to-run consistency for the probabilistic sections below
 
 -- ----------------------------------------------------------------------------
--- Athletes. auth_user_id stays null until each person claims their profile
--- through the app (see claim_athlete() in
--- supabase/migrations/20260725161000_auth_claim.sql and
--- FRONTEND_INTEGRATION.md) — nothing here pre-links an identity. Emails are
--- realistic-looking placeholders that exist only to satisfy the `email not
--- null unique` constraint before claiming; claiming overwrites them with
--- whatever real address that person actually verifies.
+-- Athletes. auth_user_id and phone_number both stay null until each person
+-- claims their profile through the app (see claim_athlete_with_phone() in
+-- supabase/migrations/20260726090000_phone_auth.sql) — nothing here
+-- pre-links an identity or a number.
 -- ----------------------------------------------------------------------------
-insert into public.athletes (name, email) values
-  ('Akshit', 'akshit@familyworkout.local'),
-  ('Atharv', 'atharv@familyworkout.local'),
-  ('Vidushi', 'vidushi@familyworkout.local'),
-  ('Anamika', 'anamika@familyworkout.local'),
-  ('Vivek', 'vivek@familyworkout.local'),
-  ('Amit', 'amit@familyworkout.local'),
-  ('Vishakha', 'vishakha@familyworkout.local');
+insert into public.athletes (name) values
+  ('Akshit'),
+  ('Atharv'),
+  ('Vidushi'),
+  ('Anamika'),
+  ('Vivek'),
+  ('Amit'),
+  ('Vishakha');
 
 -- ----------------------------------------------------------------------------
 -- Activity types: the 5 defaults, plus two "Add Your Own" customs (Cardio,

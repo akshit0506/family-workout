@@ -66,15 +66,15 @@ export async function fetchActivitiesAsFeedEntries(options?: {
 /**
  * Resolves "the current athlete" from the actual signed-in session —
  * proxy.ts guarantees every (main) request has one before this runs.
- * auth_user_id is populated by claiming a profile (see /login and the
- * claim_athlete() RPC in 20260725161000_auth_claim.sql), so this is a
- * direct lookup, not a guess.
+ * auth_user_id is populated by claim_athlete_with_phone() / login_with_phone()
+ * in 20260726090000_phone_auth.sql, so this is a direct lookup, not a guess.
  *
- * A session can legitimately exist with no linked athlete yet: sign-up is
- * no longer invite-gated, so someone can verify an OTP and then abandon
- * the "pick your name" step (close the tab, lose connection, etc.) before
- * claiming completes. That's not a hard failure — send them back to
- * /login to resume claiming, rather than crashing to error.tsx.
+ * A session can legitimately exist with no linked athlete yet: an anonymous
+ * session gets created as soon as someone starts the claim/sign-in flow on
+ * /login, and they might abandon it (close the tab, lose connection) before
+ * a claim/login RPC actually links it to an athlete row. That's not a hard
+ * failure — send them back to /login to pick up where they left off, rather
+ * than crashing to error.tsx.
  */
 export async function fetchCurrentAthlete(): Promise<Athlete> {
   const user = await getAuthUser();
@@ -90,15 +90,13 @@ export async function fetchCurrentAthlete(): Promise<Athlete> {
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Could not resolve the current athlete for ${user.email ?? user.id}.`, {
+    throw new Error(`Could not resolve the current athlete for ${user.id}.`, {
       cause: error,
     });
   }
 
   if (!data) {
-    // ?resume=1 tells /login to skip straight to the "pick your name" step
-    // instead of asking this already-authenticated session to sign in again.
-    redirect("/login?resume=1");
+    redirect("/login");
   }
 
   return data;

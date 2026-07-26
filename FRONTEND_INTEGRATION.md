@@ -1,16 +1,58 @@
 # Frontend Integration
 
-This document covers four milestones, newest first. The read-path
+This document covers five milestones, newest first. The read-path
 milestone (bottom of this file) swapped `lib/data/*` from `lib/mock/*` to
 Supabase reads, with writes still local-only. **Authentication &
 Persistence** (below that) added real auth, real writes, and the real
 family roster — its auth mechanism (admin-run invites) was then replaced
 by **Self-Serve Profile Claiming**, which itself got a UX/hardening pass
-in **Auth UX Polish & Hardening** (top of this file, the most recent
-milestone). Every function's signature and return type stayed the same
-across all four; nothing above `lib/data/*` (pages, `AppStateProvider`,
-`lib/stats.ts`, `lib/ranking.ts`, components) was redesigned, only swapped
-underneath.
+in **Auth UX Polish & Hardening**, before the whole email-OTP mechanism
+was replaced outright by **Phone-Based Anonymous Auth** (top of this
+file, the most recent milestone) for a simpler threat model appropriate
+to a 7-person private app. Every function's signature and return type
+stayed the same across all five; nothing above `lib/data/*` (pages,
+`AppStateProvider`, `lib/stats.ts`, `lib/ranking.ts`, components) was
+redesigned, only swapped underneath.
+
+## Milestone: Phone-Based Anonymous Auth (replaces Email OTP)
+
+Product decision, not a bug fix: email OTP (and the SMTP/rate-limit/DLT
+problems chronicled in the milestones below) was more auth than a private
+7-person family app's threat model needs. Replaced entirely with Supabase
+Auth **Anonymous Sign-In** (a real, signed session — `auth.uid()` still
+works, RLS is unchanged in shape) plus a 10-digit Indian mobile number
+that acts as a lightweight shared secret, not proof of phone ownership —
+no OTP/SMS code is ever sent. See `supabase/migrations/20260726090000_phone_auth.sql`
+for the schema/RPC changes and the security reasoning (why RLS still
+holds, why the phone comparison happens server-side only, why
+`phone_number` is excluded from client-readable columns even though the
+row itself is visible).
+
+**What changed:**
+- `athletes.email` → `athletes.phone_number` (nullable, unique, checked
+  `^\+91[0-9]{10}$`, excluded from `authenticated`/`service_role` column
+  grants — stricter than `email` ever was, since a phone number now
+  doubles as a login credential)
+- `claim_athlete(uuid)` → two RPCs: `claim_athlete_with_phone(athlete_id, phone)`
+  for first-time claims, `login_with_phone(athlete_id, phone)` for
+  re-signing-in after sign-out or on a new device (re-points
+  `auth_user_id` at a fresh anonymous session)
+- `src/app/login/page.tsx` rewritten: no email input, no OTP-code screen,
+  no `resend`/`resume` states. Every roster name is clickable (claimed
+  names now mean "sign in," not "already taken and disabled") — the phone
+  step's copy and backend call branch on `athlete.claimed` from
+  `athlete_claim_status` (unchanged view, still excludes sensitive fields)
+- `fetchCurrentAthlete()` simplified: dropped the `?resume=1` distinction
+  entirely, since the roster is now the same landing state either way
+- Removed: `supabase/templates/magic_link.html`, the SMTP/email-template
+  dashboard configuration steps in `DEPLOYMENT.md`, `config.toml`'s
+  `[auth.email.template.magic_link]` block
+
+**Accepted tradeoff, stated explicitly (not an oversight):** since no code
+is ever sent to verify possession, anyone who *knows* a family member's
+number can sign in as them from any device. For 7 trusted people this was
+judged an acceptable simplification; it would not be appropriate at a
+larger scale or lower-trust user base.
 
 ## Milestone: Auth UX Polish & Hardening
 

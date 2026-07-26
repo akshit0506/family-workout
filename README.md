@@ -17,8 +17,8 @@ home-screen app, not just a website.
   time periods
 - **Profile** — per-athlete streaks, a month calendar of logged days,
   activity breakdown, and ranking history
-- **Self-serve onboarding** — pick your name from the family list, verify
-  with an emailed 6-digit code, and you're in — no admin invite step
+- **Self-serve onboarding** — pick your name from the family list, enter
+  your mobile number, and you're in — no admin invite step, no OTP/email
 - **Installable PWA** — add-to-home-screen on iOS/Android, standalone
   launch, offline app-shell caching, safe-area-aware layout for notches
   and home indicators
@@ -27,7 +27,7 @@ home-screen app, not just a website.
 
 - [Next.js 16](https://nextjs.org) (App Router, Turbopack)
 - [Supabase](https://supabase.com) — Postgres, Row Level Security, Auth
-  (email OTP), Storage
+  (Anonymous Sign-In + phone-number RPC), Storage
 - Tailwind CSS v4
 - TypeScript
 
@@ -55,9 +55,7 @@ This spins up a local Postgres instance, runs the migrations in
 `supabase/migrations/`, and seeds it with realistic demo data
 (`supabase/seed.sql`) — 7 athletes, weeks of activity history, comments,
 and kudos, so the app looks alive from the first run. See
-[`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) for the full local-dev setup,
-including how to grab a magic-link sign-in code from the local mail
-catcher (Mailpit) without a real email provider.
+[`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) for the full local-dev setup.
 
 ### 3. Configure environment variables
 
@@ -79,9 +77,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign in with any of
-the seeded family members' names and grab the OTP code from Mailpit at
-[http://localhost:54324](http://localhost:54324).
+Open [http://localhost:3000](http://localhost:3000). Pick any of the
+seeded family members' names and enter any 10-digit number to claim that
+profile — there's no code to look up anywhere, local or otherwise.
 
 ## Scripts
 

@@ -234,6 +234,34 @@ one cohesive "demo → real product" milestone rather than separate tasks.)
       explainer up front and a day-one-specific block added to the
       verification checklist.
 
+**Milestone 10.3 — Phone-based anonymous auth (replaces Email OTP)** ✅
+- [x] Product decision, not a bug fix: email OTP (and the SMTP/rate-limit
+      problems hit trying to deploy it — Supabase's default sender caps
+      at ~2 emails/hour, not viable even for 7 people) was more auth than
+      a private 7-person app's threat model needs. Replaced with Supabase
+      Auth **Anonymous Sign-In** (still a real signed session — RLS
+      unchanged in shape) plus a 10-digit Indian mobile number acting as
+      a lightweight shared secret, not proof of possession — no code is
+      ever sent anywhere, so no SMTP/SMS provider/DLT registration needed
+      at all.
+- [x] `athletes.email` → `athletes.phone_number`, plus new column-level
+      grants so phone numbers (unlike email before them) are never
+      readable by other family members' sessions, only via the
+      SECURITY DEFINER RPCs. `claim_athlete()` → `claim_athlete_with_phone()`
+      / `login_with_phone()` (new migration, old one left untouched since
+      it's already applied to the hosted project — see
+      `supabase/migrations/20260726090000_phone_auth.sql`).
+- [x] `/login` rewritten: every roster name is clickable now (claimed
+      names mean "sign in," not "disabled, already taken") — picking a
+      name branches to claim-with-confirmation or direct sign-in based on
+      `athlete_claim_status`. Sign-out now genuinely requires re-entering
+      the phone number, matching the product ask.
+- [x] Accepted tradeoff, stated explicitly: since no code is sent, anyone
+      who *knows* a family member's number can sign in as them from any
+      device. Judged acceptable for 7 trusted people; documented in
+      `DEPLOYMENT.md` and `FRONTEND_INTEGRATION.md` so it's a known
+      decision, not a surprise.
+
 **Open product decisions — tracked, not blocking** (full detail in
 `PRODUCT.md` §8): day-boundary/timezone handling for a family that may not
 share a timezone, leaderboard opt-out, a roster-management UI (today:
@@ -303,7 +331,6 @@ left in this phase:
 - [ ] Performance pass (Lighthouse, bundle size, image optimization)
 - [ ] Decide static vs. dynamic rendering strategy (timestamp formatting already depends on render-time `Date`)
 - [ ] Stand up the production Supabase project + Vercel deployment (`DEPLOYMENT.md`)
-- [ ] Replace seed `.local` emails with the family's real addresses before real invites go out
 - [ ] Basic uptime/error monitoring
 
 ## Product Backlog
@@ -336,9 +363,6 @@ provisioning (replaced by self-serve claiming — see Milestone 9/10 above).
 
 Still open:
 
-- [ ] Auth email template is customized for the code-entry flow but still
-      plain (`supabase/templates/magic_link.html`) — worth a design pass
-      before this feels fully "real" to non-technical family members
 - [ ] No roster-change UI — adding or removing a family member (as opposed
       to claiming an existing one) still means editing `supabase/seed.sql`
       or the `athletes` table directly

@@ -16,7 +16,7 @@ Two separate SQL files, deliberately not one file with a flag:
 |---|---|---|
 | **Audience** | Local development only | A brand-new hosted project, once |
 | **Run by** | `supabase db reset` / `supabase start`, automatically (`config.toml`'s `[db.seed]`) | An admin, manually, once — never automatic |
-| **Contains** | 7 athletes, ~30–45 days of realistic activity history, comments, kudos, two demo custom activity types (Cardio, Pickleball) | 7 athletes (unclaimed, placeholder emails), the 5 default activity types |
+| **Contains** | 7 athletes, ~30–45 days of realistic activity history, comments, kudos, two demo custom activity types (Cardio, Pickleball) | 7 athletes (unclaimed, `phone_number` null), the 5 default activity types |
 | **Never contains** | — | Any activity, comment, kudos, or custom activity type |
 
 Why two files instead of one seed with a `--demo` flag: `supabase db push`
@@ -44,9 +44,10 @@ npx supabase db push
 ```
 
 `db push` applies every file in `supabase/migrations/*` — schema, indexes,
-RLS policies, the storage bucket, and the `claim_athlete()` auth-claim
-mechanism. It does **not** run any seed file (neither `seed.sql` nor
-`production_bootstrap.sql`) — that's the next, separate step.
+RLS policies, the storage bucket, and the `claim_athlete_with_phone()` /
+`login_with_phone()` phone-auth functions. It does **not** run any seed
+file (neither `seed.sql` nor `production_bootstrap.sql`) — that's the
+next, separate step.
 
 ## 3. Run the production bootstrap
 
@@ -54,12 +55,12 @@ Open Studio's SQL editor for the hosted project (or connect with `psql`
 using the project's connection string) and run the entire contents of
 `supabase/production_bootstrap.sql`.
 
-This inserts exactly: the 7 real athlete rows (unclaimed, with unique
-placeholder emails — **no email here needs to be correct**; whatever a
-person types into `/login` when they claim their profile becomes that
-row's real, permanent email via `claim_athlete()`), and the 5 default
-activity types the logging form needs to have something to show on day
-one. Nothing else — no activities, no comments, no kudos.
+This inserts exactly: the 7 real athlete rows (unclaimed, `phone_number`
+left `null` — whatever number a person types into `/login` when they
+claim their profile becomes that row's permanent number via
+`claim_athlete_with_phone()`), and the 5 default activity types the
+logging form needs to have something to show on day one. Nothing else —
+no activities, no comments, no kudos.
 
 **Do not run `supabase/seed.sql` against production.** It's the local dev
 file — realistic-looking activity history, comments, and kudos that would
@@ -72,8 +73,11 @@ cascade-delete with them) — there's no automated undo.
 Verify before moving on:
 
 ```sql
-select name, email, auth_user_id is not null as claimed from public.athletes order by name;
+select name, auth_user_id is not null as claimed from public.athletes order by name;
 -- expect: 7 rows, all claimed = false
+-- note: phone_number is intentionally not selectable by anon/authenticated
+-- roles (see 20260726090000_phone_auth.sql) — query it as the Postgres
+-- owner role in Studio's SQL editor if you ever need to confirm it directly.
 
 select count(*) from public.activities; -- expect: 0
 select count(*) from public.activity_types; -- expect: 5
@@ -81,47 +85,31 @@ select count(*) from public.activity_types; -- expect: 5
 
 ## 4. Configure authentication
 
-1. **URL Configuration** (Studio → Authentication → URL Configuration):
+1. **Anonymous Sign-Ins** (Studio → Authentication → Sign In / Providers →
+   Anonymous): toggle **on**. This is the app's entire sign-in mechanism
+   now — a real Supabase Auth session with no email/SMS/SMTP step, then a
+   phone-number RPC links it to an athlete row (see
+   `supabase/migrations/20260726090000_phone_auth.sql`). Nothing else in
+   this section is needed: no SMTP, no email templates, no rate limits to
+   tune, no OTP delivery to worry about.
+2. **URL Configuration** (Studio → Authentication → URL Configuration):
    set **Site URL** to your real production URL (e.g.
    `https://family-workout.vercel.app`). No redirect URL to add beyond
-   that — sign-in is a typed 6-digit code (`verifyOtp`), not a clicked
-   link, so there's no callback route to allow-list.
-2. **Rate limits** (Studio → Authentication → Rate Limits): the local dev
-   default was raised to 30 emails/hour in `config.toml` for testing (that
-   file isn't read by a hosted project); check the hosted project's own
-   default isn't so low it blocks a 7-person household using the app
-   normally.
-3. **Email template** (Studio → Authentication → Email Templates → Magic
-   Link): paste in the same customization as
-   `supabase/templates/magic_link.html` — the 6-digit `{{ .Token }}`
-   surfaced prominently. Local dev's `config.toml`-referenced template
-   file isn't read by a hosted project, so this has to be set again by
-   hand here. Worth a further copy/branding pass so it doesn't read like a
-   generic SaaS email to non-technical family members, but the code needs
-   to be there before day one, not just as later polish.
+   that — there's no email link or OAuth callback in this flow.
 
-> **Email is intentionally immutable for v1.** Once `claim_athlete()`
-> succeeds, `athletes.email` is permanent — there's no "change your
-> email" flow, by design, not an oversight (`claim_athlete()`'s `where
-> auth_user_id is null` check means the same profile can never be
-> re-claimed with a different address either). If someone claims the
-> wrong profile or types a typo'd email, the only fix today is an admin
-> manually clearing `auth_user_id` back to `null` for that row in Studio
-> (and, if their `auth.users` account should also be removed, deleting it
-> via Studio → Authentication → Users) so they can claim again. Worth
-> mentioning to the family before rollout so nobody's surprised by it —
-> get the right name and email on the first try.
+> **Phone numbers are intentionally immutable, and act as a shared secret,
+> not proof of ownership.** Once `claim_athlete_with_phone()` succeeds,
+> `athletes.phone_number` is permanent for that row — there's no "change
+> your number" flow, by design (mirrors the email-immutability decision
+> from the previous auth model). No OTP/SMS code is ever sent to verify
+> the number actually belongs to the person entering it — see
+> `ROADMAP.md`'s Milestone 13 notes and this file's "Known limitations"
+> for the accepted tradeoff behind that choice. If someone claims the
+> wrong profile or mistypes their number, the only fix today is an admin
+> manually clearing `auth_user_id` and `phone_number` back to `null` for
+> that row in Studio so they can claim again.
 
-## 5. Configure SMTP
-
-Set up a real SMTP provider (Studio → Authentication → SMTP Settings).
-The local Mailpit catch-all doesn't exist in production, and without a
-configured SMTP provider, Supabase's own default email sending has low
-rate limits meant for auth-flow testing, not real household usage. This
-is the one step in this whole guide that has no local-dev equivalent to
-copy from — local dev deliberately never sends real email at all.
-
-## 6. Configure environment variables
+## 5. Configure environment variables
 
 Just two variables, both safe to expose to the browser (that's what RLS
 is for) — there's no service-role key to manage, since sign-up and
@@ -132,28 +120,24 @@ profile claiming are self-serve (no admin script needs elevated access):
 | `NEXT_PUBLIC_SUPABASE_URL` | `lib/supabase/{server,client}.ts`, `src/proxy.ts` | Studio → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same as above | Same as above |
 
-## 7. Deploy to Vercel
+## 6. Deploy to Vercel
 
 1. Import the repo into Vercel.
-2. Set the two environment variables from §6 in Vercel's project settings.
+2. Set the two environment variables from §5 in Vercel's project settings.
 3. Build command / output: defaults (`next build`) are already correct —
    no config changes needed. Every `(main)` route is already
    `force-dynamic`, so nothing gets incorrectly statically prerendered
    against build-time-unavailable data.
 4. Deploy. Confirm the deployed URL matches what you set as Supabase's
-   Site URL in §4.1 — a mismatch here is the most likely cause of
-   `site_url`-derived links elsewhere in Supabase's own auth emails
-   pointing somewhere wrong, even though the app's own sign-in flow
-   doesn't depend on it for the code itself.
-5. If using a custom domain, update Supabase's Site URL (§4.1) to match
+   Site URL in §4.2.
+5. If using a custom domain, update Supabase's Site URL (§4.2) to match
    the custom domain, not the `*.vercel.app` one.
 
-## 8. Production verification checklist
+## 7. Production verification checklist
 
-Repeat this by hand once, for real, against the production URL with at
-least two real family members' inboxes — this is the manual version of
-the automated end-to-end passes run locally throughout development (see
-`FRONTEND_INTEGRATION.md`):
+Repeat this by hand once, for real, against the production URL — this is
+the manual version of the automated end-to-end passes run locally
+throughout development (see `FRONTEND_INTEGRATION.md`):
 
 **First-time production state**
 - [ ] Database matches the bootstrap exactly: 7 athletes, all unclaimed;
@@ -167,24 +151,28 @@ the automated end-to-end passes run locally throughout development (see
 
 **Claiming and auth**
 - [ ] Visiting the production URL while signed out redirects to `/login`
-- [ ] First use: pick a name from the family list, enter a real email,
-      confirm the 6-digit code actually delivers **to the real inbox**
-      (no Mailpit hint should appear here — that's local-dev only) and
-      shows prominently, not just as a clickable link
+      and shows the full roster (no OTP/email step of any kind)
+- [ ] First use: pick a name, enter a 10-digit number — the `+91` prefix
+      is fixed/non-editable and Continue stays disabled until exactly 10
+      digits are entered
 - [ ] A confirmation dialog appears before the profile is actually
-      claimed, naming the correct person; cancelling it does not claim
-      anything
-- [ ] Confirming shows the success celebration, then lands on Home
-      showing the right person's name
-- [ ] Trying to claim that same name again from a different
-      browser/session is rejected with a clear message
-- [ ] Sign out, sign back in with the same email — lands straight on Home
-      with no name list shown (auto-resolved)
+      claimed, naming the correct person and the number; cancelling it
+      does not claim anything
+- [ ] Confirming shows the success screen ("linked to this device..."),
+      then lands on Home showing the right person's name
+- [ ] Picking that same (now-claimed) name again from a different
+      browser/session, with the correct number, signs in as that person
+      rather than re-claiming
+- [ ] Picking a claimed name with the *wrong* number shows a clear error
+      and does not sign in
 - [ ] Refreshing the page keeps the session (no bounce back to `/login`)
 - [ ] Closing and reopening the browser (not just refreshing) keeps the
       session too
-- [ ] Visiting `/login` directly while already signed in redirects to
-      Home rather than showing the sign-in form again
+- [ ] Sign out, then sign back in by picking your name and re-entering
+      your number — lands back on Home as the right person
+- [ ] Querying `public.athletes` as the `anon` or `authenticated` role
+      never returns `phone_number` (column-level grant, not just RLS) —
+      confirms numbers aren't exposed to other family members' sessions
 
 **First real workout and derived stats**
 - [ ] Add an activity, confirm it appears in the feed after a hard refresh
@@ -208,7 +196,7 @@ the automated end-to-end passes run locally throughout development (see
       check here just confirms the same policies were part of `db push`,
       not a full re-proof
 
-## 9. PWA deployment checklist
+## 8. PWA deployment checklist
 
 **Built.** The app is a real installable PWA — manifest, icons, service
 worker, offline shell, and safe-area/mobile polish are all in place and
@@ -323,7 +311,7 @@ verification pass.
   Android device. §10 below is the real-hardware pass that should happen
   once before broad family rollout.
 
-## 10. Real-device PWA verification
+## 9. Real-device PWA verification
 
 Do this once, on the two actual device/browser combinations the family
 will use, before telling everyone to install it (the automated Playwright

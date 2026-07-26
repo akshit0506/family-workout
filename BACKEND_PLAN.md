@@ -39,6 +39,17 @@ builds on.
 > this specific flow, since the claim wizard needs to stay on one page
 > through name-selection → email → verification, and a link-click would
 > navigate away mid-flow. See §3 and §8 for the full detail.
+>
+> **Superseded again, later**: Email OTP itself was replaced by **Supabase
+> Auth Anonymous Sign-In + a phone-number RPC** — no email/SMS step at
+> all. `athletes.email` → `athletes.phone_number` (excluded from client
+> column grants); `claim_athlete()` → `claim_athlete_with_phone()` /
+> `login_with_phone()`. `current_athlete_id()` and every RLS policy's
+> *shape* are unchanged — only how `auth_user_id` gets populated changed.
+> The phone number is a deliberate, explicitly-accepted shared-secret
+> tradeoff (no proof of possession), judged appropriate for a 7-person
+> private app. See `supabase/migrations/20260726090000_phone_auth.sql`
+> and `FRONTEND_INTEGRATION.md`'s top milestone for the full reasoning.
 
 ## 1. Overall Architecture
 

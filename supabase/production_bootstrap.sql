@@ -16,11 +16,12 @@
 --
 -- Contains only what the app functionally needs to be usable on day one:
 --
---   1. The real 7-person roster, unclaimed, with unique placeholder
---      emails. Each becomes permanent and real the moment that person
---      claims their profile through the app itself (auth_user_id and
---      email are both set atomically by claim_athlete() — see
---      FRONTEND_INTEGRATION.md) — nothing here needs to be edited first.
+--   1. The real 7-person roster, unclaimed, with phone_number left null.
+--      Each becomes permanent the moment that person claims their profile
+--      through the app itself (auth_user_id and phone_number are both set
+--      atomically by claim_athlete_with_phone() — see
+--      20260726090000_phone_auth.sql) — nothing here needs to be edited
+--      first.
 --   2. The 5 default activity types. This one isn't optional flavor: the
 --      logging form's type chips are entirely sourced from the
 --      activity_types table (lib/data/activityTypes.ts) with no
@@ -36,14 +37,14 @@
 -- everyone until real workouts start getting logged.
 -- ============================================================================
 
-insert into public.athletes (name, email) values
-  ('Akshit', 'akshit@familyworkout.local'),
-  ('Atharv', 'atharv@familyworkout.local'),
-  ('Vidushi', 'vidushi@familyworkout.local'),
-  ('Anamika', 'anamika@familyworkout.local'),
-  ('Vivek', 'vivek@familyworkout.local'),
-  ('Amit', 'amit@familyworkout.local'),
-  ('Vishakha', 'vishakha@familyworkout.local');
+insert into public.athletes (name, phone_number) values
+  ('Akshit', null),
+  ('Atharv', null),
+  ('Vidushi', null),
+  ('Anamika', null),
+  ('Vivek', null),
+  ('Amit', null),
+  ('Vishakha', null);
 
 insert into public.activity_types (label, created_by) values
   ('Gym', null),

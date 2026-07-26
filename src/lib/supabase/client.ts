@@ -3,9 +3,8 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 /**
- * Browser Supabase client. Not called anywhere yet — writes still go
- * through AppStateProvider's local state this milestone. Scaffolded now for
- * the magic-link auth milestone, which will need a client-side session.
+ * Browser Supabase client — used by /login for anonymous sign-in and the
+ * claim/login RPCs, and by AppStateProvider for authenticated writes.
  */
 export function createBrowserSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

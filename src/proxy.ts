@@ -11,8 +11,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // lib/data/supabase-helpers.ts and FRONTEND_INTEGRATION.md): even if a route
 // somehow rendered without this check running, it couldn't read or write
 // anything meaningful without a valid session.
-// Sign-in is pure OTP-code entry (verifyOtp) from a single client-rendered
-// page — no separate callback route to allow-list.
+// Sign-in is Anonymous Sign-In plus a phone-match RPC from a single
+// client-rendered page — no separate callback route to allow-list.
 //
 // Also public: PWA plumbing that must be fetchable with no session at all.
 // /manifest.webmanifest is what the browser reads to decide installability
@@ -61,12 +61,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Deliberately no "signed-in users get redirected away from /login" rule
-  // here. A session can exist without a claimed athlete (sign-up is open
-  // now), and fetchCurrentAthlete() sends those sessions back to
-  // /login?resume=1 to finish claiming — redirecting them straight back to
-  // "/" here would bounce forever between the two. A fully claimed user
-  // who navigates to /login by mistake just sees the sign-in form again,
-  // which is harmless.
+  // here. An anonymous session can exist without a claimed athlete (e.g. an
+  // abandoned claim attempt), and fetchCurrentAthlete() sends those sessions
+  // back to /login to finish — redirecting them straight back to "/" here
+  // would bounce forever between the two. A fully claimed user who
+  // navigates to /login by mistake just sees the roster again, which is
+  // harmless.
 
   return response;
 }

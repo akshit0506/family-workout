@@ -15,8 +15,8 @@ supabase/
 │   ├── 20260725120000_schema.sql            # tables, indexes, constraints
 │   ├── 20260725120100_rls_policies.sql      # RLS on every table
 │   ├── 20260725120200_storage.sql           # activity-photos bucket + policies
-│   └── 20260725161000_auth_claim.sql        # claim_athlete() + tightened read policies
-├── templates/magic_link.html                # OTP email template (6-digit code)
+│   ├── 20260725161000_auth_claim.sql        # superseded — see 20260726090000_phone_auth.sql
+│   └── 20260726090000_phone_auth.sql        # claim_athlete_with_phone() / login_with_phone(), phone_number column
 ├── seed.sql                                 # LOCAL DEV ONLY — 7 athletes + ~30–45 days of activity history, comments, kudos
 └── production_bootstrap.sql                 # PRODUCTION — 7 unclaimed athletes + 5 activity types, nothing else
 ```
@@ -39,7 +39,7 @@ npx supabase start      # first run pulls images, ~2-3 min; applies migrations +
 This gives you:
 - **Studio** at `http://127.0.0.1:54323` — browse tables, run SQL, inspect the seeded data visually.
 - **API URL** at `http://127.0.0.1:54321` and a local anon/service-role key pair (printed by `supabase start`, also available via `npx supabase status`).
-- **Inbucket** (fake mail server) at `http://127.0.0.1:54324` — magic link emails land here instead of a real inbox, once auth is wired up in a later milestone.
+- Sign-in is Anonymous Sign-In + a phone-number RPC (see `20260726090000_phone_auth.sql`) — no email/SMS involved, so there's no local mail catcher to check.
 
 To re-apply migrations and re-run the seed from a clean slate at any point
 (e.g. after editing a migration):
