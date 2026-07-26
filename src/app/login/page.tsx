@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { APP_NAME } from "@/lib/config";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -263,6 +264,8 @@ export default function LoginPage() {
         onConfirm={handleConfirmClaim}
         onCancel={() => setConfirmingClaim(false)}
       />
+
+      <InstallPrompt />
     </div>
   );
 }

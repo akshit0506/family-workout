@@ -14,7 +14,7 @@
 //
 // Bump this on any change to what's precached below — activate() uses it
 // to evict every older cache in one pass.
-const CACHE_VERSION = "family-workout-v1";
+const CACHE_VERSION = "family-workout-v2";
 
 const PRECACHE_URLS = [
   "/offline",
