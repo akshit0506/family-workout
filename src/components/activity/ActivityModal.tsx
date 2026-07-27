@@ -65,6 +65,7 @@ export function ActivityModal() {
                   activities: editingEntry.activities,
                   durationLabel: editingEntry.durationLabel,
                   notes: editingEntry.notes,
+                  photos: editingEntry.photos,
                 }
               : undefined
           }

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { startOfDay } from "@/lib/date";
 import { computeCompetitionRanks } from "@/lib/ranking";
 import { computeCurrentStreak, countLoggedDaysInWindow, getLoggedDateKeys } from "@/lib/stats";
@@ -17,7 +18,7 @@ function quarterIndexOf(date: Date): number {
 // Periods are pure calendar math, not user data — no Supabase call needed.
 // Replaces what used to be hardcoded mock values ("Q3", day 24 of 92) with
 // whatever quarter "today" actually falls in, so this never goes stale.
-export async function getPeriodOptions(): Promise<PeriodOption[]> {
+export const getPeriodOptions = cache(async function getPeriodOptions(): Promise<PeriodOption[]> {
   const today = new Date();
   const year = today.getFullYear();
   const currentQuarterIndex = quarterIndexOf(today);
@@ -32,14 +33,14 @@ export async function getPeriodOptions(): Promise<PeriodOption[]> {
   options.push({ id: String(year), label: String(year) });
   options.push({ id: String(year - 1), label: String(year - 1) });
   return options;
-}
+});
 
-export async function getCurrentPeriodId(): Promise<string> {
+export const getCurrentPeriodId = cache(async function getCurrentPeriodId(): Promise<string> {
   const today = new Date();
   return `q${quarterIndexOf(today) + 1}-${today.getFullYear()}`;
-}
+});
 
-export async function getPeriodProgress(): Promise<PeriodProgress> {
+export const getPeriodProgress = cache(async function getPeriodProgress(): Promise<PeriodProgress> {
   const today = new Date();
   const quarterIndex = quarterIndexOf(today);
   const quarterStart = new Date(today.getFullYear(), quarterIndex * 3, 1);
@@ -50,7 +51,7 @@ export async function getPeriodProgress(): Promise<PeriodProgress> {
     currentDay: Math.floor((startOfDay(today).getTime() - quarterStart.getTime()) / DAY_MS) + 1,
     totalDays: Math.round((quarterEnd.getTime() - quarterStart.getTime()) / DAY_MS),
   };
-}
+});
 
 /**
  * "Workout days this period" is defined the same way AppStateProvider
@@ -61,7 +62,7 @@ export async function getPeriodProgress(): Promise<PeriodProgress> {
  * ranking in JS via the existing pure helpers is simpler and cheaper than a
  * new SQL aggregate, and reuses code already covered by the client path.
  */
-export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+export const getLeaderboard = cache(async function getLeaderboard(): Promise<LeaderboardRow[]> {
   try {
     const [athletes, periodProgress, entries] = await Promise.all([
       fetchAllAthletes(),
@@ -89,12 +90,14 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
   } catch {
     return [];
   }
-}
+});
 
 // Deeper historical ranking (past quarters) is an open decision per
 // BACKEND_PLAN.md §8 — honestly reporting null/0 for non-current periods
 // rather than inventing a ranking system this milestone didn't ask for.
-export async function getMyPeriodRankings(): Promise<PeriodRankSummary[]> {
+export const getMyPeriodRankings = cache(async function getMyPeriodRankings(): Promise<
+  PeriodRankSummary[]
+> {
   try {
     const [periodOptions, currentPeriodId, leaderboard, currentAthlete] = await Promise.all([
       getPeriodOptions(),
@@ -117,4 +120,4 @@ export async function getMyPeriodRankings(): Promise<PeriodRankSummary[]> {
   } catch {
     return [];
   }
-}
+});

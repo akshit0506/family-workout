@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Comment } from "@/lib/types";
 
@@ -9,7 +10,9 @@ type CommentRow = {
   posted_at: string;
 };
 
-export async function getAllComments(): Promise<Record<string, Comment[]>> {
+export const getAllComments = cache(async function getAllComments(): Promise<
+  Record<string, Comment[]>
+> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
@@ -33,4 +36,4 @@ export async function getAllComments(): Promise<Record<string, Comment[]>> {
   } catch {
     return {};
   }
-}
+});

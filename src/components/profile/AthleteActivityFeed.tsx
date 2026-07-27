@@ -44,6 +44,7 @@ export function AthleteActivityFeed({ athleteId, previewCount = 1 }: AthleteActi
           durationLabel={entry.durationLabel}
           notes={entry.notes}
           achievementNote={entry.achievementNote}
+          photos={entry.photos}
         />
       ))}
 

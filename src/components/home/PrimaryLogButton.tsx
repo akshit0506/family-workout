@@ -38,9 +38,11 @@ export function PrimaryLogButton() {
       onPointerDown={startHold}
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
-      className={`relative w-full overflow-hidden rounded-xl border-2 py-3.5 text-sm font-bold uppercase tracking-widest transition-colors active:scale-[0.99] ${
-        hasLoggedToday ? "border-ink/10 bg-card text-ink" : "border-rust bg-card text-rust"
+      onContextMenu={(event) => event.preventDefault()}
+      className={`relative w-full select-none overflow-hidden rounded-xl border-2 py-3.5 text-sm font-bold uppercase tracking-widest transition-colors active:scale-[0.99] ${
+        hasLoggedToday ? "border-rust/20 bg-rust/5 text-rust" : "border-rust bg-card text-rust"
       }`}
+      style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
     >
       <span
         aria-hidden
@@ -57,7 +59,7 @@ export function PrimaryLogButton() {
             ✓
           </span>
         )}
-        {hasLoggedToday ? "Hold to view today's activities" : "Hold to log today"}
+        {hasLoggedToday ? "Activity Logged" : "Hold to log today"}
       </span>
     </button>
   );

@@ -3,6 +3,14 @@ export type Athlete = {
   name: string;
 };
 
+export type ActivityPhoto = {
+  id: string;
+  path: string;
+  url: string;
+  /** Set only for a locally-added photo whose upload hasn't resolved yet. */
+  uploading?: boolean;
+};
+
 export type FeedEntry = {
   id: string;
   athleteId: string;
@@ -12,6 +20,7 @@ export type FeedEntry = {
   notes?: string;
   achievementNote?: string;
   kudosFromAthleteIds: string[];
+  photos: ActivityPhoto[];
 };
 
 export type ActivityType = {
@@ -23,6 +32,18 @@ export type ActivityFormValues = {
   activities: string[];
   durationLabel?: string;
   notes?: string;
+  /** Freshly-compressed photos to upload, in display order. */
+  newPhotos: Blob[];
+  /** ids (from `ActivityFormInitialValues.photos`) to keep — anything already
+   * on the entry but missing from this list should be deleted. */
+  keepPhotoIds: string[];
+};
+
+export type ActivityFormInitialValues = {
+  activities: string[];
+  durationLabel?: string;
+  notes?: string;
+  photos?: ActivityPhoto[];
 };
 
 export type CurrentUserSummary = {

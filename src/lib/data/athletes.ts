@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { addDays, startOfDay } from "@/lib/date";
 import { getPeriodProgress, getLeaderboard } from "@/lib/data/leaderboard";
 import {
@@ -36,9 +37,9 @@ const EMPTY_SUMMARY: CurrentUserSummary = {
 // middleware.ts should already have redirected to /login before this can
 // run, so this stays a hard failure rather than a fabricated identity,
 // propagating to (main)/error.tsx instead of silently guessing who's signed in.
-export async function getCurrentUser(): Promise<Athlete> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<Athlete> {
   return fetchCurrentAthlete();
-}
+});
 
 /**
  * Every number here comes from the same lib/stats.ts pure functions
@@ -56,7 +57,9 @@ export async function getCurrentUser(): Promise<Athlete> {
  * correct in its own right (this return value is a fully valid
  * CurrentUserSummary), it's just not the copy that ends up on screen.
  */
-export async function getCurrentUserSummary(): Promise<CurrentUserSummary> {
+export const getCurrentUserSummary = cache(async function getCurrentUserSummary(): Promise<
+  CurrentUserSummary
+> {
   try {
     const currentAthlete = await fetchCurrentAthlete();
     const today = new Date();
@@ -87,12 +90,12 @@ export async function getCurrentUserSummary(): Promise<CurrentUserSummary> {
   } catch {
     return EMPTY_SUMMARY;
   }
-}
+});
 
 // Absence (bad id in the URL) and failure (dead connection) are different:
 // maybeSingle() makes "not found" resolve to undefined, the graceful case
 // the profile route already renders for; anything else throws to error.tsx.
-export async function getAthlete(id: string): Promise<Athlete | undefined> {
+export const getAthlete = cache(async function getAthlete(id: string): Promise<Athlete | undefined> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("athletes")
@@ -102,15 +105,15 @@ export async function getAthlete(id: string): Promise<Athlete | undefined> {
 
   if (error) throw error;
   return data ?? undefined;
-}
+});
 
-export async function getAthletes(): Promise<Athlete[]> {
+export const getAthletes = cache(async function getAthletes(): Promise<Athlete[]> {
   try {
     return await fetchAllAthletes();
   } catch {
     return [];
   }
-}
+});
 
 /**
  * Period-scoped (matches the window shown elsewhere on the same Profile
@@ -119,7 +122,9 @@ export async function getAthletes(): Promise<Athlete[]> {
  * is relative to workout days, not entry rows, so it can total over 100% on
  * multi-activity days — the same shape the original mock data had.
  */
-export async function getActivityBreakdown(): Promise<ActivityBreakdownItem[]> {
+export const getActivityBreakdown = cache(async function getActivityBreakdown(): Promise<
+  ActivityBreakdownItem[]
+> {
   try {
     const currentAthlete = await fetchCurrentAthlete();
     const periodProgress = await getPeriodProgress();
@@ -152,4 +157,4 @@ export async function getActivityBreakdown(): Promise<ActivityBreakdownItem[]> {
   } catch {
     return [];
   }
-}
+});

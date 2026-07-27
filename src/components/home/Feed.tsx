@@ -34,6 +34,7 @@ export function Feed() {
             durationLabel={entry.durationLabel}
             notes={entry.notes}
             achievementNote={entry.achievementNote}
+            photos={entry.photos}
           />
         );
       })}

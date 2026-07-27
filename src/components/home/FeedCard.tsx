@@ -7,8 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { CommentsSheet } from "@/components/home/CommentsSheet";
+import { PhotoGrid } from "@/components/home/PhotoGrid";
 import { useAppState } from "@/components/providers/AppStateProvider";
 import { INTERACTIVE_CLASSES } from "@/lib/interactive";
+import type { ActivityPhoto } from "@/lib/types";
 
 type FeedCardProps = {
   entryId: string;
@@ -20,6 +22,7 @@ type FeedCardProps = {
   durationLabel?: string;
   notes?: string;
   achievementNote?: string;
+  photos: ActivityPhoto[];
 };
 
 function formatKudosLine(names: string[]): string | null {
@@ -39,6 +42,7 @@ export function FeedCard({
   durationLabel,
   notes,
   achievementNote,
+  photos,
 }: FeedCardProps) {
   const { entries, athletes, currentUser, toggleKudos, commentsByEntryId, openEditActivity } =
     useAppState();
@@ -89,6 +93,8 @@ export function FeedCard({
       </div>
 
       {notes && <p className="text-sm text-ink">{notes}</p>}
+
+      {photos.length > 0 && <PhotoGrid photos={photos} />}
 
       {kudosLine && <p className="text-sm font-bold text-rust">{kudosLine}</p>}
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActivityType } from "@/lib/types";
 
@@ -8,7 +9,7 @@ import type { ActivityType } from "@/lib/types";
  * (lib/activityTypes.ts) and customs were a browser-session-only array in
  * AppStateProvider; both are now this one real, shared, persisted list.
  */
-export async function getActivityTypes(): Promise<ActivityType[]> {
+export const getActivityTypes = cache(async function getActivityTypes(): Promise<ActivityType[]> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
@@ -21,4 +22,4 @@ export async function getActivityTypes(): Promise<ActivityType[]> {
   } catch {
     return [];
   }
-}
+});

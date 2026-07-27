@@ -14,6 +14,7 @@ import { DayDetailsSheet } from "@/components/profile/DayDetailsSheet";
 import { Toast } from "@/components/ui/Toast";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { parseDateKey, toDateKey } from "@/lib/date";
+import { ACTIVITY_PHOTOS_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/lib/photo";
 import {
   buildTrailingWindow,
   buildWeekStatus,
@@ -26,12 +27,46 @@ import {
 } from "@/lib/stats";
 import type {
   ActivityFormValues,
+  ActivityPhoto,
   ActivityType,
   Athlete,
   Comment,
   CurrentUserSummary,
   FeedEntry,
 } from "@/lib/types";
+
+type BrowserSupabaseClient = ReturnType<typeof createBrowserSupabaseClient>;
+
+/** Uploads one already-compressed photo and returns its persisted record. Throws on any failure — the caller decides how to reflect that in UI state. */
+async function persistActivityPhoto(
+  supabase: BrowserSupabaseClient,
+  activityId: string,
+  athleteId: string,
+  blob: Blob,
+  position: number
+): Promise<ActivityPhoto> {
+  const id = crypto.randomUUID();
+  const path = `${athleteId}/${activityId}/${id}.jpg`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(ACTIVITY_PHOTOS_BUCKET)
+    .upload(path, blob, { contentType: "image/jpeg" });
+  if (uploadError) throw uploadError;
+
+  const { error: insertError } = await supabase
+    .from("activity_photos")
+    .insert({ id, activity_id: activityId, athlete_id: athleteId, storage_path: path, position });
+  if (insertError) {
+    await supabase.storage.from(ACTIVITY_PHOTOS_BUCKET).remove([path]);
+    throw insertError;
+  }
+
+  const { data: signedData } = await supabase.storage
+    .from(ACTIVITY_PHOTOS_BUCKET)
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+  return { id, path, url: signedData?.signedUrl ?? "" };
+}
 
 type ActivityModalState =
   | { mode: "add"; dateKey: string }
@@ -234,6 +269,81 @@ export function AppStateProvider({
     [activityTypes, currentUser.id, showToast]
   );
 
+  // Uploads each newly-picked photo independently: an optimistic local
+  // preview appears immediately (via its own blob URL), then gets swapped
+  // for the real signed URL once the upload + row insert resolve, or
+  // dropped with a toast if either fails. A failed photo never reverts the
+  // activity itself — the two are intentionally decoupled.
+  const uploadNewPhotos = useCallback(
+    (entryId: string, athleteId: string, blobs: Blob[], startPosition: number) => {
+      if (blobs.length === 0) return;
+      const supabase = createBrowserSupabaseClient();
+
+      blobs.forEach((blob, index) => {
+        const tempId = crypto.randomUUID();
+        const previewUrl = URL.createObjectURL(blob);
+
+        setEntries((prev) =>
+          prev.map((entry) =>
+            entry.id === entryId
+              ? { ...entry, photos: [...entry.photos, { id: tempId, path: "", url: previewUrl, uploading: true }] }
+              : entry
+          )
+        );
+
+        persistActivityPhoto(supabase, entryId, athleteId, blob, startPosition + index)
+          .then((photo) => {
+            setEntries((prev) =>
+              prev.map((entry) =>
+                entry.id === entryId
+                  ? { ...entry, photos: entry.photos.map((p) => (p.id === tempId ? photo : p)) }
+                  : entry
+              )
+            );
+            URL.revokeObjectURL(previewUrl);
+          })
+          .catch(() => {
+            setEntries((prev) =>
+              prev.map((entry) =>
+                entry.id === entryId
+                  ? { ...entry, photos: entry.photos.filter((p) => p.id !== tempId) }
+                  : entry
+              )
+            );
+            URL.revokeObjectURL(previewUrl);
+            showToast("Couldn't upload a photo — try again");
+          });
+      });
+    },
+    [showToast]
+  );
+
+  // Removed photos are already dropped from UI state by the caller
+  // (optimistic); this only handles the actual storage + row deletion,
+  // restoring them on failure.
+  const persistPhotoRemoval = useCallback(
+    (entryId: string, removed: ActivityPhoto[]) => {
+      if (removed.length === 0) return;
+      const supabase = createBrowserSupabaseClient();
+
+      Promise.all(
+        removed.map(async (photo) => {
+          await supabase.storage.from(ACTIVITY_PHOTOS_BUCKET).remove([photo.path]);
+          const { error } = await supabase.from("activity_photos").delete().eq("id", photo.id);
+          if (error) throw error;
+        })
+      ).catch(() => {
+        setEntries((prev) =>
+          prev.map((entry) =>
+            entry.id === entryId ? { ...entry, photos: [...entry.photos, ...removed] } : entry
+          )
+        );
+        showToast("Couldn't remove a photo — try again");
+      });
+    },
+    [showToast]
+  );
+
   const saveActivity = useCallback(
     (values: ActivityFormValues) => {
       if (!activityModal) return;
@@ -247,6 +357,10 @@ export function AppStateProvider({
       if (activityModal.mode === "edit") {
         const { entryId } = activityModal;
         const previousEntries = entries;
+        const existingPhotos = entries.find((entry) => entry.id === entryId)?.photos ?? [];
+        const removedPhotos = existingPhotos.filter(
+          (photo) => !values.keepPhotoIds.includes(photo.id)
+        );
 
         setEntries((prev) =>
           prev.map((entry) =>
@@ -256,6 +370,7 @@ export function AppStateProvider({
                   activities: values.activities,
                   durationLabel: values.durationLabel,
                   notes: values.notes,
+                  photos: entry.photos.filter((photo) => values.keepPhotoIds.includes(photo.id)),
                 }
               : entry
           )
@@ -285,10 +400,15 @@ export function AppStateProvider({
               .insert(typeIds.map((activity_type_id) => ({ activity_id: entryId, activity_type_id })));
             if (insertTypesError) throw insertTypesError;
           }
-        })().catch(() => {
-          setEntries(previousEntries);
-          showToast("Couldn't save that update — try again");
-        });
+        })()
+          .then(() => {
+            persistPhotoRemoval(entryId, removedPhotos);
+            uploadNewPhotos(entryId, currentUser.id, values.newPhotos, values.keepPhotoIds.length);
+          })
+          .catch(() => {
+            setEntries(previousEntries);
+            showToast("Couldn't save that update — try again");
+          });
       } else {
         const { dateKey } = activityModal;
         const now = new Date();
@@ -305,6 +425,7 @@ export function AppStateProvider({
           durationLabel: values.durationLabel,
           notes: values.notes,
           kudosFromAthleteIds: [],
+          photos: [],
         };
 
         const previousEntries = entries;
@@ -328,19 +449,26 @@ export function AppStateProvider({
               .insert(typeIds.map((activity_type_id) => ({ activity_id: id, activity_type_id })));
             if (typesError) throw typesError;
           }
-        })().catch(() => {
-          setEntries(previousEntries);
-          showToast("Couldn't save that activity — try again");
-        });
+        })()
+          .then(() => {
+            uploadNewPhotos(id, currentUser.id, values.newPhotos, 0);
+          })
+          .catch(() => {
+            setEntries(previousEntries);
+            showToast("Couldn't save that activity — try again");
+          });
       }
     },
-    [activityModal, activityTypes, currentUser.id, entries, showToast]
+    [activityModal, activityTypes, currentUser.id, entries, persistPhotoRemoval, showToast, uploadNewPhotos]
   );
 
   const deleteActivity = useCallback(
     (entryId: string) => {
       const previousEntries = entries;
       const previousComments = commentsByEntryId;
+      const photoPaths = (entries.find((entry) => entry.id === entryId)?.photos ?? [])
+        .map((photo) => photo.path)
+        .filter(Boolean);
 
       setEntries((prev) => prev.filter((entry) => entry.id !== entryId));
       setCommentsByEntryId((prev) => {
@@ -357,10 +485,18 @@ export function AppStateProvider({
         .delete()
         .eq("id", entryId)
         .then(({ error }) => {
-          if (!error) return;
-          setEntries(previousEntries);
-          setCommentsByEntryId(previousComments);
-          showToast("Couldn't delete — try again");
+          if (error) {
+            setEntries(previousEntries);
+            setCommentsByEntryId(previousComments);
+            showToast("Couldn't delete — try again");
+            return;
+          }
+          // Best-effort: activity_photos rows cascade with the activity,
+          // but the storage objects themselves don't — clean them up so
+          // they don't linger in the bucket. Not worth reverting over.
+          if (photoPaths.length > 0) {
+            void supabase.storage.from(ACTIVITY_PHOTOS_BUCKET).remove(photoPaths);
+          }
         });
     },
     [entries, commentsByEntryId, showToast]
